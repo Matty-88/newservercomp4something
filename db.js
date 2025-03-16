@@ -16,6 +16,7 @@ db.serialize(() => {
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
+        role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin')),
         api_calls INTEGER DEFAULT 0
     )`, (err) => {
         if (err) {

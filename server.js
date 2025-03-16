@@ -50,7 +50,7 @@ exec("py musicgenAPI.py", (error, stdout, stderr) => {
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
-    const sql = "SELECT id, name, email, password, api_calls FROM users WHERE email = ?";
+    const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = ?";
     
     db.get(sql, [email], async (err, user) => {
         if (err) return res.status(400).json({ error: err.message });
@@ -75,6 +75,7 @@ app.post("/login", async (req, res) => {
                 user: {
                     id: user.id,
                     name: user.name,
+                    role: user.role,
                     email: user.email,
                     api_calls: user.api_calls + 1, // Updated API call count
                 },
