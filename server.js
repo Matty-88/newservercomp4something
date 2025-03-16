@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const sqlite3 = require("sqlite3").verbose();
 const db = require("./db");
+const axios = require("axios");
+const {exec} = require("child_process")
 
 
 const cors = require("cors"); // Import CORS middleware
@@ -34,6 +36,14 @@ const incrementAPI = (user) => {
                 return res.status(500).json({ error: "Failed to update API calls" });
             }})
 }
+
+exec("py musicgenAPI.py", (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Error starting MusicGen API: ${error.message}`);
+    } else {
+        console.log(`MusicGen API Running: ${stdout}`);
+    }
+});
 
 
 // Login Route
@@ -93,6 +103,17 @@ app.post("/logout", (req, res) => {
         if (err) return res.status(500).json({ error: "Failed to log out" });
         res.json({ message: "Logged out successfully" });
     });
+});
+
+app.post("/generate-music", async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        const response = await axios.post("http://localhost:5001/generate-music", { prompt });
+        res.json(response.data);
+    } catch (error) {
+        console.error("MusicGen API Error:", error);
+        res.status(500).json({ error: "Failed to generate music" });
+    }
 });
 
 // Start server
