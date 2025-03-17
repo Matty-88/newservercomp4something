@@ -15,7 +15,10 @@ const app = express();
 
 
 app.use(cors());
-const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
+const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH"; // Change this to a secure secret
+const MUSICGEN_API_URL = process.env.MUSICGEN_API_URL || "http://localhost:5001";
+const DATABASE_PATH = process.env.DATABASE_PATH || "./database.sqlite";
+const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
@@ -118,5 +121,5 @@ app.post("/generate-music", async (req, res) => {
 });
 
 // Start server
-const PORT = 5000;
+
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
