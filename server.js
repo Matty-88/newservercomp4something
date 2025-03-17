@@ -21,6 +21,10 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
+
+const HUGGINGFACE_API_URL = "https://api-inference.huggingface.co/models/facebook/musicgen-small";
+const HUGGINGFACE_API_KEY = "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";
+
 // Session Middleware
 app.use(
     session({
