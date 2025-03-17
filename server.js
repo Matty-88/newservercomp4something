@@ -112,7 +112,7 @@ app.post("/add-user", async (req, res) => {
             [name, email, hashedPassword, role]
         );
 
-        res.json({ message: "✅ User added successfully!" });
+        res.json({ message: "User added successfully!" });
     } catch (error) {
         res.status(500).json({ error: "Error adding user: " + error.message });
     }
