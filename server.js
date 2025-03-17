@@ -99,6 +99,16 @@ app.get("/profile", (req, res) => {
     }
 });
 
+app.get("/view-users", async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT * FROM users;");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: "🚨 Error fetching users" });
+    }
+});
+
+
 // Logout Route
 app.post("/logout", (req, res) => {
     req.session.destroy((err) => {
