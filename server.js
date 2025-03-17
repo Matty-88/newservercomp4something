@@ -143,13 +143,31 @@ app.post("/logout", (req, res) => {
 app.post("/generate-music", async (req, res) => {
     try {
         const { prompt } = req.body;
-        const response = await axios.post("http://localhost:5001/generate-music", { prompt });
-        res.json(response.data);
+
+        const response = await axios.post(
+            "https://api-inference.huggingface.co/models/facebook/musicgen-small",
+            { inputs: prompt },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                responseType: "arraybuffer",
+            }
+        );
+
+        res.set("Content-Type", "audio/wav");
+        res.send(response.data);
     } catch (error) {
-        console.error("MusicGen API Error:", error);
-        res.status(500).json({ error: "Failed to generate music" });
+        console.error("MusicGen API Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ 
+            error: "Failed to generate music",
+            details: error.response ? error.response.data : error.message 
+        });
     }
 });
+
+
 
 // Start server
 
