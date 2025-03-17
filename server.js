@@ -2,7 +2,7 @@ const express = require("express");
 const session = require("express-session");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const sqlite3 = require("sqlite3").verbose();
+
 const db = require("./db");
 const axios = require("axios");
 const {exec} = require("child_process")
@@ -17,7 +17,6 @@ const app = express();
 app.use(cors());
 const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH"; // Change this to a secure secret
 const MUSICGEN_API_URL = process.env.MUSICGEN_API_URL || "http://localhost:5001";
-const DATABASE_PATH = process.env.DATABASE_PATH || "./database.sqlite";
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
@@ -53,38 +52,37 @@ exec("py musicgenAPI.py", (error, stdout, stderr) => {
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
-    const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = ?";
+    const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = $1";
     
-    db.get(sql, [email], async (err, user) => {
-        if (err) return res.status(400).json({ error: err.message });
+    try {
+        const { rows } = await db.query(sql, [email]);
+        const user = rows[0];
         if (!user) return res.status(401).json({ error: "User not found" });
 
         const match = await bcrypt.compare(password, user.password);
         if (!match) return res.status(401).json({ error: "Invalid password" });
 
-        // Generate JWT token
-        const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: "24h" });
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "24h" });
 
-        // Save token in session
         req.session.token = token;
 
-        // Increment API calls
-        await incrementAPI(user);
-        
+        await db.query("UPDATE users SET api_calls = api_calls + 1 WHERE id = $1", [user.id]);
 
-            res.json({
-                message: "Login successful",
-                token: token, // Return token
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    role: user.role,
-                    email: user.email,
-                    api_calls: user.api_calls + 1, // Updated API call count
-                },
-            });
+        res.json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                email: user.email,
+                api_calls: user.api_calls + 1,
+            },
         });
-    });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
 
 
 // Check if user is authenticated

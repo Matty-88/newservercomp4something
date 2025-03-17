@@ -1,31 +1,25 @@
-const sqlite3 = require("sqlite3").verbose();
+require('dotenv').config();
+const { Pool } = require('pg');
 
-// Open or create the database file
-const db = new sqlite3.Database("./database.sqlite", (err) => {
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+pool.query(`
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin')),
+    api_calls INTEGER DEFAULT 0
+);`, (err) => {
     if (err) {
-        console.error("Error opening database:", err.message);
+        console.error("🚨 Error creating users table:", err);
     } else {
-        console.log("Connected to SQLite database.");
+        console.log("✅ Users table ready (PostgreSQL).");
     }
 });
 
-// Create the users table
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT DEFAULT 'user' CHECK(role IN ('user', 'admin')),
-        api_calls INTEGER DEFAULT 0
-    )`, (err) => {
-        if (err) {
-            console.error("Error creating table:", err.message);
-        } else {
-            console.log("Users table created successfully.");
-        }
-    });
-});
-
-
-module.exports = db;
+module.exports = pool;
