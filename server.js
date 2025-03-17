@@ -99,12 +99,31 @@ app.get("/profile", (req, res) => {
     }
 });
 
+app.post("/add-user", async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+        
+        // Hash password before storing
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert user into the database
+        await db.query(
+            `INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4)`,
+            [name, email, hashedPassword, role]
+        );
+
+        res.json({ message: "✅ User added successfully!" });
+    } catch (error) {
+        res.status(500).json({ error: "Error adding user: " + error.message });
+    }
+});
+
 app.get("/view-users", async (req, res) => {
     try {
         const { rows } = await db.query("SELECT * FROM users;");
         res.json(rows);
     } catch (error) {
-        res.status(500).json({ error: "🚨 Error fetching users" });
+        res.status(500).json({ error: " Error fetching users" });
     }
 });
 
