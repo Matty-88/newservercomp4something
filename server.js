@@ -141,37 +141,35 @@ app.post("/logout", (req, res) => {
     });
 });
 
-app.post("/generate-music", async (req, res) => {
+app.post('/generate-music', async (req, res) => {
+    const { prompt } = req.body;
+  
     try {
-        const { prompt } = req.body;
-
-        console.log(process.env.HUGGINGFACE_API_KEY)
-        console.log(MUSICGEN_API_URL)
-        const response = await axios.post(
-            MUSICGEN_API_URL,
-            { inputs: prompt },
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                responseType: "arraybuffer",
-            }
-        );
-
-        res.set("Content-Type", "audio/wav");
-        res.status(200).json({ message: response.data });
-        console.log('success')
+      const response = await axios.post(MUSICGEN_API_URL, { inputs: prompt }, {
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'arraybuffer', // Ensures binary data
+      });
+  
+      // Set appropriate headers for WAV audio
+      res.set({
+        'Content-Type': 'audio/wav',
+        'Content-Disposition': 'attachment; filename="audio.wav"',
+      });
+  
+      // Send binary data directly
+      res.send(Buffer.from(response.data, 'binary'));
     } catch (error) {
-        console.log(error.response)
-        console.error("MusicGen API Error:", error.response ? error.response.data : error.message);
-        res.status(500).json({
-            error: "Failed to generate music",
-            details: error.response ? error.response.data : error.message
-        });
+      console.error("Music generation failed:", error);
+      res.status(500).json({
+        error: "Music generation failed",
+        details: error.response ? error.response.data : error.message,
+      });
     }
-});
-
+  });
+  
 
 
 // Start server
