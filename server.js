@@ -5,7 +5,7 @@ const bcrypt = require("bcryptjs");
 
 const db = require("./db");
 const axios = require("axios");
-const {exec} = require("child_process")
+const { exec } = require("child_process")
 
 
 const cors = require("cors"); // Import CORS middleware
@@ -37,10 +37,11 @@ app.use(
 
 const incrementAPI = (user) => {
     const updateSql = "UPDATE users SET api_calls = api_calls + 1 WHERE id = ?";
-        db.run(updateSql, [user.id], function (updateErr) {
-            if (updateErr) {
-                return res.status(500).json({ error: "Failed to update API calls" });
-            }})
+    db.run(updateSql, [user.id], function (updateErr) {
+        if (updateErr) {
+            return res.status(500).json({ error: "Failed to update API calls" });
+        }
+    })
 }
 
 exec("py musicgenAPI.py", (error, stdout, stderr) => {
@@ -57,7 +58,7 @@ app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = $1";
-    
+
     try {
         const { rows } = await db.query(sql, [email]);
         const user = rows[0];
@@ -106,7 +107,7 @@ app.get("/profile", (req, res) => {
 app.post("/add-user", async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
-        
+
         // Hash password before storing
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -145,6 +146,7 @@ app.post("/generate-music", async (req, res) => {
         const { prompt } = req.body;
 
         console.log(process.env.HUGGINGFACE_API_KEY)
+        console.log(MUSICGEN_API_URL)
         const response = await axios.post(
             MUSICGEN_API_URL,
             { inputs: prompt },
@@ -158,12 +160,14 @@ app.post("/generate-music", async (req, res) => {
         );
 
         res.set("Content-Type", "audio/wav");
-        res.send(response.data);
+        res.status.json({ message: response.data });
+        console.log('success')
     } catch (error) {
+        console.log(error.response)
         console.error("MusicGen API Error:", error.response ? error.response.data : error.message);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Failed to generate music",
-            details: error.response ? error.response.data : error.message 
+            details: error.response ? error.response.data : error.message
         });
     }
 });
