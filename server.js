@@ -16,7 +16,7 @@ const app = express();
 
 app.use(cors());
 const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH"; // Change this to a secure secret
-const MUSICGEN_API_URL = process.env.MUSICGEN_API_URL || "http://localhost:5001";
+const MUSICGEN_API_URL = "https://api-inference.huggingface.co/models/facebook/musicgen-small";
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
@@ -144,8 +144,9 @@ app.post("/generate-music", async (req, res) => {
     try {
         const { prompt } = req.body;
 
+        console.log(process.env.HUGGINGFACE_API_KEY)
         const response = await axios.post(
-            "https://api-inference.huggingface.co/models/facebook/musicgen-small",
+            MUSICGEN_API_URL,
             { inputs: prompt },
             {
                 headers: {
