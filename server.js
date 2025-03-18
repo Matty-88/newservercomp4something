@@ -160,7 +160,7 @@ app.post("/generate-music", async (req, res) => {
         );
 
         res.set("Content-Type", "audio/wav");
-        res.status.json({ message: response.data });
+        res.status(200).json({ message: response.data });
         console.log('success')
     } catch (error) {
         console.log(error.response)
