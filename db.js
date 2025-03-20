@@ -1,8 +1,14 @@
 require('dotenv').config();
+
+//pool manages database connections
 const { Pool } = require('pg');
+
+
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+
+    //enables SSL in production, prevents cirtification issues with Render
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
@@ -16,9 +22,9 @@ CREATE TABLE IF NOT EXISTS users (
     api_calls INTEGER DEFAULT 0
 );`, (err) => {
     if (err) {
-        console.error("🚨 Error creating users table:", err);
+        console.error(" Error creating users table:", err);
     } else {
-        console.log("✅ Users table ready (PostgreSQL).");
+        console.log(" Users table ready (PostgreSQL).");
     }
 });
 
