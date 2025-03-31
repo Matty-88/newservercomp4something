@@ -25,6 +25,8 @@ const cors = require("cors");
 //creates an exprss app instance, used for routes, middleware and start server
 const app = express();
 
+app.set("trust proxy", 1);
+
 const allowedOrigins = [
     "http://localhost:3000",
     "https://stirring-quokka-38a3ea.netlify.app"
