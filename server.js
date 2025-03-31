@@ -1,3 +1,5 @@
+import messages from "./messages"
+
 const express = require("express"); //imports express framework used for web server, handles http requewsts, routes middleware
 
 //manages user sessions, in memory to keep users logged in between requests
@@ -40,7 +42,7 @@ app.use(
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          callback(new Error("Not allowed by CORS"));
+          callback(new Error(messages.notAllowedCors));
         }
       },
       credentials: true,
@@ -103,7 +105,7 @@ app.use(async (req, res, next) => {
                 await db.query(insertQuery, [userId, endpoint, method]);
             }
         } catch (err) {
-            console.error("API usage logging error:", err.message);
+            console.error(messages.apiUseLogErr, err.message);
             // Proceed without logging if token is invalid or DB error occurs
         }
     }
@@ -124,7 +126,7 @@ const incrementAPI = (user) => {
     db.run(updateSql, [user.id], function (updateErr) {
         if (updateErr) {
             //res is http response object. sends json back to the client
-            return res.status(500).json({ error: "Failed to update API calls" });
+            return res.status(500).json({ error: messages.failedUpdateApi });
         }
     })
 }
@@ -150,11 +152,11 @@ app.post("/login", async (req, res) => {
 
         //gets the first user if found
         const user = rows[0];
-        if (!user) return res.status(401).json({ error: "User not found" });
+        if (!user) return res.status(401).json({ error: messages.userNotFound });
 
         //comapres the passwords user.password in database
         const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(401).json({ error: "Invalid password" });
+        if (!match) return res.status(401).json({ error: messages.invalPass });
 
         //creates the jwt token with id email role, secret key to sign the token, used for authentication
         const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "24h" });
@@ -187,14 +189,14 @@ app.post("/login", async (req, res) => {
 // Get API usage stats (Admin only)
 app.get("/admin/api-usage", async (req, res) => {
     if (!req.session.token) {
-        return res.status(401).json({ error: "Unauthorized: No token found" });
+        return res.status(401).json({ error: messages.unauthorized });
     }
 
     try {
         const decoded = jwt.verify(req.session.token, SECRET_KEY);
 
         if (decoded.role !== "admin") {
-            return res.status(403).json({ error: "Forbidden: Admins only" });
+            return res.status(403).json({ error: messages.adminONly });
         }
 
         const query = `
@@ -213,7 +215,7 @@ app.get("/admin/api-usage", async (req, res) => {
         const { rows } = await db.query(query);
         res.json(rows);
     } catch (error) {
-        console.error("Failed to fetch API usage:", error);
+        console.error(messages.failedFetchApi, error);
         res.status(500).json({ error: "Server error retrieving API stats" });
     }
 });
