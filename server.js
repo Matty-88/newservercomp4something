@@ -1,23 +1,41 @@
-// server.js
+// Load environment variables
 require("dotenv").config();
+
+// Core modules
 const express = require("express");
 const session = require("express-session");
 const cors = require("cors");
-const db = require("./db");
-const messages = require("./messages");
 const jwt = require("jsonwebtoken");
 
+// Custom modules
+const db = require("./db");
+const messages = require("./messages");
+
+// App & Config
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = process.env.SECRET_KEY;
-
-app.set("trust proxy", 1);
 
 const allowedOrigins = [
     "http://localhost:3000",
     "https://stirring-quokka-38a3ea.netlify.app",
 ];
 
+// Swagger setup
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+
+// Route Imports
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
+const musicRoutes = require("./routes/music");
+
+// Express Middleware
+app.use(express.json());
+app.set("trust proxy", 1);
+
+// CORS setup
 app.use(
     cors({
         origin: function (origin, callback) {
@@ -31,8 +49,7 @@ app.use(
     })
 );
 
-app.use(express.json());
-
+// Session management
 app.use(
     session({
         secret: SECRET_KEY,
@@ -45,7 +62,7 @@ app.use(
     })
 );
 
-// Middleware to log API usage to api_usage table
+// Middleware to log API usage
 app.use(async (req, res, next) => {
     if (req.session.token) {
         try {
@@ -71,10 +88,7 @@ app.use(async (req, res, next) => {
     next();
 });
 
-// Swagger Setup
-const swaggerJsdoc = require("swagger-jsdoc");
-const swaggerUi = require("swagger-ui-express");
-
+// Swagger Docs at /docs
 const swaggerOptions = {
     definition: {
         openapi: "3.0.0",
@@ -83,25 +97,26 @@ const swaggerOptions = {
             version: "1.0.0",
             description: "REST API documentation using Swagger UI",
         },
+        servers: [
+            {
+                url: "http://localhost:5000/v1",
+                description: "Development server",
+            },
+        ],
     },
-    apis: ["./routes/*.js"], // 👈 Scans routes files for @swagger comments
+    apis: ["./routes/*.js"], // Swagger reads route files for @swagger comments
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Route Imports
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
-const adminRoutes = require("./routes/admin");
-const musicRoutes = require("./routes/music");
-
-// Route Usage
+// Versioned Routes
 app.use("/v1/auth", authRoutes);
 app.use("/v1/users", userRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1", musicRoutes);
 
+// Start Server
 app.listen(PORT, () =>
-    console.log(`Server running on http://localhost:${PORT}`)
+    console.log(`Server running at http://localhost:${PORT}/v1`)
 );
