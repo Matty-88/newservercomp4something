@@ -1,61 +1,104 @@
-// routes/auth.js
-const express = require("express"); //imports express framework used for web server, handles http requewsts, routes middleware
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: User authentication routes
+ */
 
-//used to create and verify JWT's
-//when a user is logged in a jwt token is generated
-//token is send with each request to verify user
+const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-//import the db module 
 const db = require("../db");
-
-//import messages module for error messages
 const messages = require("../messages");
 
-//import express session module for session management
 const router = express.Router();
+const SECRET_KEY = process.env.SECRET_KEY;
 
-//user to sign and verify JSON web tokens JWT for authentication
-const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH";
-
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Log in a user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "user@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "password123"
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid email or password
+ *       400:
+ *         description: Bad request
+ */
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = $1";
 
     try {
-    const { rows } = await db.query(sql, [email]);
-    const user = rows[0];
-    if (!user) return res.status(401).json({ error: messages.userNotFound });
+        const { rows } = await db.query(sql, [email]);
+        const user = rows[0];
+        if (!user) return res.status(401).json({ error: messages.userNotFound });
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: messages.invalPass });
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) return res.status(401).json({ error: messages.invalPass });
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "24h" });
-    req.session.token = token;
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            SECRET_KEY,
+            { expiresIn: "24h" }
+        );
 
-    await db.query("UPDATE users SET api_calls = api_calls + 1 WHERE id = $1", [user.id]);
+        req.session.token = token;
 
-    res.json({
-        message: "Login successful",
-        token,
-        user: {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        email: user.email,
-        api_calls: user.api_calls + 1,
-        },
-    });
+        await db.query("UPDATE users SET api_calls = api_calls + 1 WHERE id = $1", [user.id]);
+
+        res.json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                email: user.email,
+                api_calls: user.api_calls + 1,
+            },
+        });
     } catch (err) {
-    res.status(400).json({ error: err.message });
+        res.status(400).json({ error: err.message });
     }
 });
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Log out the current user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *       500:
+ *         description: Server error logging out
+ */
 router.post("/logout", (req, res) => {
     req.session.destroy((err) => {
-    if (err) return res.status(500).json({ error: "Failed to log out" });
-    res.json({ message: "Logged out successfully" });
+        if (err) return res.status(500).json({ error: "Failed to log out" });
+        res.json({ message: "Logged out successfully" });
     });
 });
 
