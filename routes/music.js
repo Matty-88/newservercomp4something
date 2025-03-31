@@ -1,12 +1,46 @@
-// routes/music.js
+/**
+ * @swagger
+ * tags:
+ *   name: Music
+ *   description: Music generation endpoint using AI
+ */
+
 const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-const MUSICGEN_API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-small";
-
+/**
+ * @swagger
+ * /generate-music:
+ *   post:
+ *     summary: Generate AI music from a text prompt
+ *     tags: [Music]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prompt
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 example: "An energetic EDM beat with synths"
+ *     responses:
+ *       200:
+ *         description: Audio file generated successfully
+ *         content:
+ *           audio/wav:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       500:
+ *         description: Music generation failed
+ */
 router.post("/generate-music", async (req, res) => {
     const { prompt } = req.body;
+    const MUSICGEN_API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-small";
 
     try {
         const response = await axios.post(
