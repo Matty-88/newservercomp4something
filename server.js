@@ -1,51 +1,107 @@
-// routes/auth.js
+// server.js
+require("dotenv").config();
 const express = require("express");
-const bcrypt = require("bcryptjs");
+const session = require("express-session");
+const cors = require("cors");
+const db = require("./db");
+const messages = require("./messages");
 const jwt = require("jsonwebtoken");
-const db = require("../db");
-const messages = require("../messages");
-const router = express.Router();
 
-const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH";
+const app = express();
+const PORT = process.env.PORT || 5000;
+const SECRET_KEY = process.env.SECRET_KEY;
 
-router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    const sql = "SELECT id, name, role, email, password, api_calls FROM users WHERE email = $1";
+app.set("trust proxy", 1);
 
-    try {
-        const { rows } = await db.query(sql, [email]);
-        const user = rows[0];
-        if (!user) return res.status(401).json({ error: messages.userNotFound });
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://stirring-quokka-38a3ea.netlify.app",
+];
 
-        const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(401).json({ error: messages.invalPass });
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(messages.notAllowedCors));
+            }
+        },
+        credentials: true,
+    })
+);
 
-        const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "24h" });
-        req.session.token = token;
+app.use(express.json());
 
-        await db.query("UPDATE users SET api_calls = api_calls + 1 WHERE id = $1", [user.id]);
+app.use(
+    session({
+        secret: SECRET_KEY,
+        resave: false,
+        saveUninitialized: true,
+        cookie: {
+            secure: true,
+            sameSite: "None",
+        },
+    })
+);
 
-        res.json({
-            message: "Login successful",
-            token,
-            user: {
-                id: user.id,
-                name: user.name,
-                role: user.role,
-                email: user.email,
-                api_calls: user.api_calls + 1,
-            },
-        });
-    } catch (err) {
-        res.status(400).json({ error: err.message });
+// Middleware to log API usage to api_usage table
+app.use(async (req, res, next) => {
+    if (req.session.token) {
+        try {
+            const decoded = jwt.verify(req.session.token, SECRET_KEY);
+            const userId = decoded.id;
+            const endpoint = req.path;
+            const method = req.method;
+
+            const checkQuery = `SELECT * FROM api_usage WHERE user_id = $1 AND endpoint = $2 AND method = $3`;
+            const { rows } = await db.query(checkQuery, [userId, endpoint, method]);
+
+            if (rows.length > 0) {
+                const updateQuery = `UPDATE api_usage SET request_count = request_count + 1 WHERE id = $1`;
+                await db.query(updateQuery, [rows[0].id]);
+            } else {
+                const insertQuery = `INSERT INTO api_usage (user_id, endpoint, method, request_count) VALUES ($1, $2, $3, 1)`;
+                await db.query(insertQuery, [userId, endpoint, method]);
+            }
+        } catch (err) {
+            console.error(messages.apiUseLogErr, err.message);
+        }
     }
+    next();
 });
 
-router.post("/logout", (req, res) => {
-    req.session.destroy((err) => {
-        if (err) return res.status(500).json({ error: "Failed to log out" });
-        res.json({ message: "Logged out successfully" });
-    });
-});
+// Swagger Setup
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
-module.exports = router;
+const swaggerOptions = {
+    definition: {
+        openapi: "3.0.0",
+        info: {
+            title: "AI Music Generator API",
+            version: "1.0.0",
+            description: "REST API documentation using Swagger UI",
+        },
+    },
+    apis: ["./routes/*.js"], // 👈 Scans routes files for @swagger comments
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Route Imports
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/users");
+const adminRoutes = require("./routes/admin");
+const musicRoutes = require("./routes/music");
+
+// Route Usage
+app.use("/", authRoutes);
+app.use("/users", userRoutes);
+app.use("/admin", adminRoutes);
+app.use("/", musicRoutes);
+
+app.listen(PORT, () =>
+    console.log(`Server running on http://localhost:${PORT}`)
+);
