@@ -28,4 +28,20 @@ CREATE TABLE IF NOT EXISTS users (
     }
 });
 
+// Create `api_usage` table
+pool.query(`
+    CREATE TABLE IF NOT EXISTS api_usage (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        endpoint TEXT NOT NULL,
+        method TEXT NOT NULL,
+        request_count INTEGER DEFAULT 1
+    );`, (err) => {
+        if (err) {
+            console.error("Error creating api_usage table:", err);
+        } else {
+            console.log(" API usage table ready (PostgreSQL).");
+        }
+    });
+
 module.exports = pool;

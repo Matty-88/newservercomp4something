@@ -27,13 +27,16 @@ const app = express();
 
 //enables cores. express applies cors() before handling any routes
 //it modifies response headers to allow requests from different origins 
-app.use(cors());
+app.use(cors({
+    origin: "http://localhost:3000",  // Replace with your actual frontend origin
+    credentials: true                 // This allows cookies to be included
+  }));
 
 //user to sign and verify JSON web tokens JWT for authentication, I will move later should not be here 
 const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH"; 
 
 //requests are send to this url
-const MUSICGEN_API_URL = " https://router.huggingface.co/hf-inference/models/facebook/musicgen-small";
+const MUSICGEN_API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-small";
 
 //sets port dynamimcally by render or 5000 if not set 
 const PORT = process.env.PORT || 5000;
@@ -65,6 +68,37 @@ app.use(
     })
 );
 
+// Middleware to log API usage to api_usage table
+app.use(async (req, res, next) => {
+    // Only track logged-in users
+    if (req.session.token) {
+        try {
+            const decoded = jwt.verify(req.session.token, SECRET_KEY);
+            const userId = decoded.id;
+            const endpoint = req.path;
+            const method = req.method;
+
+            // Check if user already has a usage record for this endpoint and method
+            const checkQuery = `SELECT * FROM api_usage WHERE user_id = $1 AND endpoint = $2 AND method = $3`;
+            const { rows } = await db.query(checkQuery, [userId, endpoint, method]);
+
+            if (rows.length > 0) {
+                // Update request count
+                const updateQuery = `UPDATE api_usage SET request_count = request_count + 1 WHERE id = $1`;
+                await db.query(updateQuery, [rows[0].id]);
+            } else {
+                // Insert new record
+                const insertQuery = `INSERT INTO api_usage (user_id, endpoint, method, request_count) VALUES ($1, $2, $3, 1)`;
+                await db.query(insertQuery, [userId, endpoint, method]);
+            }
+        } catch (err) {
+            console.error("API usage logging error:", err.message);
+            // Proceed without logging if token is invalid or DB error occurs
+        }
+    }
+    next();
+});
+
 //not fully implemented
 //takes in a currently authenticated user
 //will be called wheneevr the user makes an API request 
@@ -84,13 +118,7 @@ const incrementAPI = (user) => {
     })
 }
 
-// exec("py musicgenAPI.py", (error, stdout, stderr) => {
-//     if (error) {
-//         console.error(`Error starting MusicGen API: ${error.message}`);
-//     } else {
-//         console.log(`MusicGen API Running: ${stdout}`);
-//     }
-// });
+
 
 
 // Login Route
@@ -144,23 +172,123 @@ app.post("/login", async (req, res) => {
 });
 
 
-// Check if user is authenticated
-//returs data about a loggin in user, verifies the toke 
-app.get("/profile", (req, res) => {
-    //if no token then no logged in
+
+// Get API usage stats (Admin only)
+app.get("/admin/api-usage", async (req, res) => {
     if (!req.session.token) {
         return res.status(401).json({ error: "Unauthorized: No token found" });
     }
 
     try {
-        //checks if token is valid with secret key
-        //decoded contains user id email role
         const decoded = jwt.verify(req.session.token, SECRET_KEY);
-        res.json({ message: "Profile accessed", user: decoded });
+
+        if (decoded.role !== "admin") {
+            return res.status(403).json({ error: "Forbidden: Admins only" });
+        }
+
+        const query = `
+            SELECT 
+                u.name,
+                u.email,
+                u.id AS user_id,
+                a.endpoint,
+                a.method,
+                a.request_count
+            FROM api_usage a
+            JOIN users u ON u.id = a.user_id
+            ORDER BY a.user_id;
+        `;
+
+        const { rows } = await db.query(query);
+        res.json(rows);
+    } catch (error) {
+        console.error("Failed to fetch API usage:", error);
+        res.status(500).json({ error: "Server error retrieving API stats" });
+    }
+});
+
+
+app.get("/admin/api-usage-summary", async (req, res) => {
+    if (!req.session.token) {
+        return res.status(401).json({ error: "Unauthorized: No token found" });
+    }
+
+    try {
+        const decoded = jwt.verify(req.session.token, SECRET_KEY);
+
+        if (decoded.role !== "admin") {
+            return res.status(403).json({ error: "Forbidden: Admins only" });
+        }
+
+        // 1. Summary by endpoint/method
+        const endpointQuery = `
+            SELECT 
+                method,
+                endpoint,
+                SUM(request_count) as total_requests
+            FROM api_usage
+            GROUP BY method, endpoint
+            ORDER BY method, endpoint;
+        `;
+
+        // 2. Summary by user
+        const userQuery = `
+            SELECT 
+                u.name,
+                u.email,
+                u.id,
+                SUM(a.request_count) as total_requests
+            FROM users u
+            JOIN api_usage a ON u.id = a.user_id
+            GROUP BY u.id, u.name, u.email
+            ORDER BY total_requests DESC;
+        `;
+
+        const [endpointStats, userStats] = await Promise.all([
+            db.query(endpointQuery),
+            db.query(userQuery),
+        ]);
+
+        res.json({
+            endpoints: endpointStats.rows,
+            users: userStats.rows,
+        });
+    } catch (error) {
+        console.error("Failed to fetch usage summaries:", error);
+        res.status(500).json({ error: "Server error retrieving usage summaries" });
+    }
+});
+
+
+
+
+app.get("/profile", async (req, res) => {
+    if (!req.session.token) {
+        return res.status(401).json({ error: "Unauthorized: No token found" });
+    }
+
+    try {
+        const decoded = jwt.verify(req.session.token, SECRET_KEY);
+
+        // Fetch fresh user data including api_calls
+        const { rows } = await db.query(
+            "SELECT id, name, email, role, api_calls FROM users WHERE id = $1",
+            [decoded.id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const user = rows[0];
+
+        res.json({ message: "Profile accessed", user });
     } catch (err) {
+        console.error("Profile error:", err);
         res.status(401).json({ error: "Invalid token" });
     }
 });
+
 
 app.post("/add-user", async (req, res) => {
     try {
@@ -189,6 +317,71 @@ app.get("/view-users", async (req, res) => {
         res.status(500).json({ error: " Error fetching users" });
     }
 });
+
+app.put("/users/:id", async (req, res) => {
+    const userId = req.params.id;
+    const { name, email } = req.body;
+
+    try {
+        const result = await db.query(
+            `UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING *`,
+            [name, email, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({ message: "User updated successfully", user: result.rows[0] });
+    } catch (error) {
+        console.error("PUT /users/:id error:", error);
+        res.status(500).json({ error: "Server error updating user" });
+    }
+});
+
+app.patch("/users/:id", async (req, res) => {
+    const userId = req.params.id;
+    const { name } = req.body;
+
+    try {
+        const result = await db.query(
+            `UPDATE users SET name = $1 WHERE id = $2 RETURNING *`,
+            [name, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({ message: "User name patched", user: result.rows[0] });
+    } catch (error) {
+        console.error("PATCH /users/:id error:", error);
+        res.status(500).json({ error: "Server error patching user" });
+    }
+});
+
+// DELETE route to remove a user
+// DELETE route to remove a user
+app.delete("/users/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await db.query("DELETE FROM users WHERE id=$1 RETURNING *", [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({ message: "User successfully deleted" });
+    } catch (err) {
+        console.error("Server DELETE error:", err); // <-- Improved logging here
+        res.status(500).json({ error: "Failed to delete user" });
+    }
+});
+
+
+
+
 
 
 // Logout Route
