@@ -25,12 +25,25 @@ const cors = require("cors");
 //creates an exprss app instance, used for routes, middleware and start server
 const app = express();
 
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://stirring-quokka-38a3ea.netlify.app"
+  ];
+
 //enables cores. express applies cors() before handling any routes
 //it modifies response headers to allow requests from different origins 
-app.use(cors({
-    origin: "http://localhost:3000",  // Replace with your actual frontend origin
-    credentials: true                 // This allows cookies to be included
-  }));
+app.use(
+    cors({
+      origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      credentials: true,
+    })
+  );
 
 //user to sign and verify JSON web tokens JWT for authentication, I will move later should not be here 
 const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH"; 
