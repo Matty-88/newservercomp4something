@@ -27,7 +27,7 @@ const app = express();
 
 const allowedOrigins = [
     "http://localhost:3000",
-    "https://stirring-quokka-38a3ea.netlify.app/"
+    "https://stirring-quokka-38a3ea.netlify.app"
   ];
 
 //enables cores. express applies cors() before handling any routes
