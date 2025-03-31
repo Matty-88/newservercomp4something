@@ -77,7 +77,8 @@ app.use(
         //controls wheateher cookies sent over HTTPS
         //false is cookies work in both HTTP and HTTPS
         //try setting to true after becuase render uses HTTPS
-        cookie: { secure: false }, // Set to true if using HTTPS
+        cookie: { secure: true }, // Set to true if using HTTPS
+        sameSite: "None", // Set to None for cross-origin requests
     })
 );
 
