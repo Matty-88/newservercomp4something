@@ -1,21 +1,41 @@
-// routes/admin.js
+/**
+ * @swagger
+ * tags:
+ *   name: Admin
+ *   description: Admin-level endpoints for monitoring API usage
+ */
+
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
-const messages = require("../messages");
+
 const router = express.Router();
+const SECRET_KEY = process.env.SECRET_KEY;
 
-const SECRET_KEY = "O5FMXotTEzuXKXZ0kSqK42EO80xrH";
-
+/**
+ * @swagger
+ * /admin/api-usage:
+ *   get:
+ *     summary: Retrieve detailed API usage records for all users
+ *     tags: [Admin]
+ *     responses:
+ *       200:
+ *         description: A list of API usage records
+ *       401:
+ *         description: Unauthorized (missing or invalid token)
+ *       403:
+ *         description: Forbidden (user is not an admin)
+ */
 router.get("/api-usage", async (req, res) => {
     if (!req.session.token) {
-        return res.status(401).json({ error: messages.unauthorized });
+        return res.status(401).json({ error: "Unauthorized: No token found" });
     }
 
     try {
         const decoded = jwt.verify(req.session.token, SECRET_KEY);
+
         if (decoded.role !== "admin") {
-            return res.status(403).json({ error: messages.adminONly });
+            return res.status(403).json({ error: "Forbidden: Admins only" });
         }
 
         const query = `
@@ -34,11 +54,25 @@ router.get("/api-usage", async (req, res) => {
         const { rows } = await db.query(query);
         res.json(rows);
     } catch (error) {
-        console.error(messages.failedFetchApi, error);
+        console.error("Failed to fetch API usage:", error);
         res.status(500).json({ error: "Server error retrieving API stats" });
     }
 });
 
+/**
+ * @swagger
+ * /admin/api-usage-summary:
+ *   get:
+ *     summary: Retrieve summarized API usage by endpoint and user
+ *     tags: [Admin]
+ *     responses:
+ *       200:
+ *         description: Summarized API usage data
+ *       401:
+ *         description: Unauthorized (missing or invalid token)
+ *       403:
+ *         description: Forbidden (user is not an admin)
+ */
 router.get("/api-usage-summary", async (req, res) => {
     if (!req.session.token) {
         return res.status(401).json({ error: "Unauthorized: No token found" });
@@ -46,6 +80,7 @@ router.get("/api-usage-summary", async (req, res) => {
 
     try {
         const decoded = jwt.verify(req.session.token, SECRET_KEY);
+
         if (decoded.role !== "admin") {
             return res.status(403).json({ error: "Forbidden: Admins only" });
         }
