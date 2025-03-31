@@ -27,7 +27,7 @@ const swaggerUi = require("swagger-ui-express");
 
 // Route Imports
 const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
+const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
 const musicRoutes = require("./routes/music");
 
@@ -112,7 +112,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Versioned Routes
 app.use("/v1/auth", authRoutes);
-app.use("/v1/users", userRoutes);
+app.use("/v1/user", userRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1", musicRoutes);
 
