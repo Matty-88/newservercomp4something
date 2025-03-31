@@ -79,7 +79,7 @@ const swaggerOptions = {
     definition: {
         openapi: "3.0.0",
         info: {
-            title: "AI Music Generator API",
+            title: "COMP 4537 - Group O3P - AI Music Generator API",
             version: "1.0.0",
             description: "REST API documentation using Swagger UI",
         },
@@ -88,7 +88,7 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Route Imports
 const authRoutes = require("./routes/auth");
@@ -97,10 +97,10 @@ const adminRoutes = require("./routes/admin");
 const musicRoutes = require("./routes/music");
 
 // Route Usage
-app.use("/", authRoutes);
-app.use("/users", userRoutes);
-app.use("/admin", adminRoutes);
-app.use("/", musicRoutes);
+app.use("/v1/auth", authRoutes);
+app.use("/v1/users", userRoutes);
+app.use("/v1/admin", adminRoutes);
+app.use("/v1", musicRoutes);
 
 app.listen(PORT, () =>
     console.log(`Server running on http://localhost:${PORT}`)
