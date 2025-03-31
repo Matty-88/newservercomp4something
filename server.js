@@ -27,7 +27,7 @@ const app = express();
 
 const allowedOrigins = [
     "http://localhost:3000",
-    "https://stirring-quokka-38a3ea.netlify.app"
+    "https://stirring-quokka-38a3ea.netlify.app/"
   ];
 
 //enables cores. express applies cors() before handling any routes
@@ -67,23 +67,15 @@ const HUGGINGFACE_API_KEY = "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";
 //configures session managesment in express app
 app.use(
     session({
-        //encrypts session data
-        secret: SECRET_KEY,
-        //prevents sessions form being saved repeatidy if nothing has changed
-        resave: false,
-        //if true a new session is created for every vistior even if they dont log in
-        //if set false session wont be created unless a user logs in 
-        saveUninitialized: true,
-        //controls wheateher cookies sent over HTTPS
-        //false is cookies work in both HTTP and HTTPS
-        //try setting to true after becuase render uses HTTPS
-        cookie: { secure: true,
-            sameSite: "None", // Set to 'None' for cross-origin requests
-
-         }, // Set to true if using HTTPS
-       // Set to None for cross-origin requests
+      secret: SECRET_KEY,
+      resave: false,
+      saveUninitialized: true,
+      cookie: {
+        secure: true,           //required for HTTPS (Render uses HTTPS)
+        sameSite: "None",       //required for cross-origin (Netlify → Render)
+      },
     })
-);
+  );
 
 // Middleware to log API usage to api_usage table
 app.use(async (req, res, next) => {
