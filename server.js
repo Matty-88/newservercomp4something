@@ -1,4 +1,5 @@
 // Load environment variables
+// Made with help of chatgpt
 require("dotenv").config();
 
 // Core modules
@@ -99,7 +100,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: "http://localhost:5000/v1",
+                url: "https://newservercomp4something.onrender.com/v1",
                 description: "Development server",
             },
         ],
